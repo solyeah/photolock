@@ -178,6 +178,8 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
             if (hasLowStorage) {
                 Toast.makeText(this, R.string.low_storage_error, Toast.LENGTH_LONG).show();
                 Log.w(TAG, getString(R.string.low_storage_error));
+
+
             }
         }
 
