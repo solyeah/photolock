@@ -227,6 +227,7 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
                             .asBitmap()
                             .transform(new FaceCenterCrop())
                             .into(imageView);
+                    //이미지뷰
                     break;
                 case getGallery:
                     try {
