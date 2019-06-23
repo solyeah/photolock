@@ -49,6 +49,7 @@ public class FaceView extends View {
         invalidate();
     }
 
+
     /**
      * Draws the bitmap background and the associated face landmarks.
      */

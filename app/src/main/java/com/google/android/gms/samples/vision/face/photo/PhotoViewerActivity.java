@@ -33,6 +33,7 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
+import com.google.android.gms.samples.vision.face.bluetooth.Bluetooth;
 import com.google.android.gms.samples.vision.face.patch.SafeFaceDetector;
 import com.google.android.gms.vision.Detector;
 import com.google.android.gms.vision.Frame;
@@ -53,13 +54,14 @@ import java.util.List;
  */
 public class PhotoViewerActivity extends Activity implements View.OnClickListener{
     private static final String TAG = "PhotoViewerActivity";
-    Button gallery,camera;
+    Button gallery,camera,open;
     ImageView imageView;
     private String[] permissions = {Manifest.permission.CAMERA,Manifest.permission.WRITE_EXTERNAL_STORAGE
     ,Manifest.permission.READ_EXTERNAL_STORAGE};
     private static final int MULTIPLE_PERMISSIONS = 101;
     static final int getCamera=2001;
     static final int getGallery=2002;
+    static Bluetooth bluetooth;
 
     @Override
     protected void onDestroy() {
@@ -75,8 +77,16 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
             init();
         GlideFaceDetector.initialize(this);
 
+        setBluetooth();
 
 
+    }
+    public void setBluetooth(){
+        bluetooth = new Bluetooth(this);
+        bluetooth.checkBluetooth();
+    }
+    public static void sendData(String param){
+        bluetooth.sendData(param);
     }
     private boolean checkPermissions() {
         int result;
@@ -126,6 +136,8 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
         camera=findViewById(R.id.camera);
         camera.setOnClickListener(this);
         imageView=findViewById(R.id.imageView);
+        open=findViewById(R.id.open);
+        open.setOnClickListener(this);
 
     }
 
@@ -205,6 +217,9 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
                 intent.setAction(Intent.ACTION_GET_CONTENT);
                 intent.setType("image/gallery");
                 startActivityForResult(intent, getGallery);
+                break;
+            case R.id.open:
+                sendData("1");
                 break;
         }
     }
