@@ -18,15 +18,16 @@ package com.google.android.gms.samples.vision.face.photo;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
-import android.util.SparseArray;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -34,18 +35,17 @@ import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
 import com.google.android.gms.samples.vision.face.bluetooth.Bluetooth;
-import com.google.android.gms.samples.vision.face.patch.SafeFaceDetector;
-import com.google.android.gms.vision.Detector;
-import com.google.android.gms.vision.Frame;
-import com.google.android.gms.vision.face.Face;
-import com.google.android.gms.vision.face.FaceDetector;
 import com.rohitarya.glide.facedetection.transformation.FaceCenterCrop;
 import com.rohitarya.glide.facedetection.transformation.core.GlideFaceDetector;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -62,6 +62,7 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
     static final int getCamera=2001;
     static final int getGallery=2002;
     static Bluetooth bluetooth;
+
 
     @Override
     protected void onDestroy() {
@@ -141,68 +142,6 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
 
     }
 
-    void run(Bitmap image){
-
-        //InputStream stream = getResources().openRawResource(R.raw.face);
-        //Bitmap bitmap = BitmapFactory.decodeStream(stream);
-
-        // A new face detector is created for detecting the face and its landmarks.
-        //
-        // Setting "tracking enabled" to false is recommended for detection with unrelated
-        // individual images (as opposed to video or a series of consecutively captured still
-        // images).  For detection on unrelated individual images, this will give a more accurate
-        // result.  For detection on consecutive images (e.g., live video), tracking gives a more
-        // accurate (and faster) result.
-        //
-        // By default, landmark detection is not enabled since it increases detection time.  We
-        // enable it here in order to visualize detected landmarks.
-        FaceDetector detector = new FaceDetector.Builder(getApplicationContext())
-                .setTrackingEnabled(false)
-                .setLandmarkType(FaceDetector.ALL_LANDMARKS)
-                .build();
-
-        // This is a temporary workaround for a bug in the face detector with respect to operating
-        // on very small images.  This will be fixed in a future release.  But in the near term, use
-        // of the SafeFaceDetector class will patch the issue.
-        Detector<Face> safeDetector = new SafeFaceDetector(detector);
-
-        // Create a frame from the bitmap and run face detection on the frame.
-        //Frame frame = new Frame.Builder().setBitmap(bitmap).build();
-        Frame frame = new Frame.Builder().setBitmap(image).build();
-        SparseArray<Face> faces = safeDetector.detect(frame);
-
-        if (!safeDetector.isOperational()) {
-            // Note: The first time that an app using face API is installed on a device, GMS will
-            // download a native library to the device in order to do detection.  Usually this
-            // completes before the app is run for the first time.  But if that download has not yet
-            // completed, then the above call will not detect any faces.
-            //
-            // isOperational() can be used to check if the required native library is currently
-            // available.  The detector will automatically become operational once the library
-            // download completes on device.
-            Log.w(TAG, "Face detector dependencies are not yet available.");
-
-            // Check for low storage.  If there is low storage, the native library will not be
-            // downloaded, so detection will not become operational.
-            IntentFilter lowstorageFilter = new IntentFilter(Intent.ACTION_DEVICE_STORAGE_LOW);
-            boolean hasLowStorage = registerReceiver(null, lowstorageFilter) != null;
-
-            if (hasLowStorage) {
-                Toast.makeText(this, R.string.low_storage_error, Toast.LENGTH_LONG).show();
-                Log.w(TAG, getString(R.string.low_storage_error));
-
-
-            }
-        }
-
-//        FaceView overlay = (FaceView) findViewById(R.id.faceView);
-//        overlay.setContent(image, faces);
-       // overlay.setContent(bitmap, faces);
-        // Although detector may be used multiple times for different images, it should be released
-        // when it is no longer needed in order to free native resources.
-        safeDetector.release();
-    }
-
     @Override
     public void onClick(View v) {
         Intent intent=new Intent();
@@ -219,10 +158,38 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
                 startActivityForResult(intent, getGallery);
                 break;
             case R.id.open:
+ /*이미지 저장***************************************************************************************************
+ * 현재시간(yyyyMMddHHmmss)을 이름으로 얼굴만 크롭해서 갤러리에 저장합니다. */
+                Bitmap bitmap;
+                FileOutputStream out;
+                imageView.buildDrawingCache();
+                bitmap = imageView.getDrawingCache();
+                long now = System.currentTimeMillis();
+                Date date = new Date(now);
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
+                String getTime = sdf.format(date);
+                Log.d("fileName",getTime);
+
+                try{
+                    out=new FileOutputStream(new File(Environment.getExternalStorageDirectory().getPath()+"/"+getTime+".png"));
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+                    sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.parse("file://"+Environment.getExternalStorageDirectory().getPath()+"/"+getTime+".png")));
+
+                    Toast.makeText(getApplicationContext(), "saved", Toast.LENGTH_SHORT).show();
+
+                }
+                catch(FileNotFoundException e)
+
+                {
+                    e.printStackTrace();
+                }
+/*블루투스 send***************************************************************************************************
+* 아두이노에 도어락 열라는 신호!! */
                 sendData("1");
                 break;
         }
     }
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -230,19 +197,19 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
         Bitmap bm=null;
         ByteArrayOutputStream stream =null;
         if(resultCode==RESULT_OK){
+            Drawable d;
+            Bitmap bitmap;
+            FileOutputStream out;
             switch(requestCode){
                 case getCamera:
-
                     bm=(Bitmap) data.getExtras().get("data");
                     stream = new ByteArrayOutputStream();
                     bm.compress(Bitmap.CompressFormat.PNG, 100, stream);
-//                    run(bm);
                     Glide.with(this)
                             .load(stream.toByteArray())
                             .asBitmap()
                             .transform(new FaceCenterCrop())
                             .into(imageView);
-                    //이미지뷰
                     break;
                 case getGallery:
                     try {
@@ -259,7 +226,6 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
                     }catch(OutOfMemoryError e){
                         Toast.makeText(getApplicationContext(), "이미지 용량이 너무 큽니다.", Toast.LENGTH_SHORT).show();
                     }
-//                    run(bm);
                     Glide.with(this)
 
                             .load(stream.toByteArray())
@@ -268,7 +234,6 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
 
                             .transform(new FaceCenterCrop())
                             .into(imageView);
-
 
                     break;
 
