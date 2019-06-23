@@ -25,6 +25,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
@@ -34,7 +35,12 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
-import com.google.android.gms.samples.vision.face.bluetooth.Bluetooth;
+//import com.google.android.gms.samples.vision.face.bluetooth.Bluetooth;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 import com.rohitarya.glide.facedetection.transformation.FaceCenterCrop;
 import com.rohitarya.glide.facedetection.transformation.core.GlideFaceDetector;
 
@@ -61,7 +67,9 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
     private static final int MULTIPLE_PERMISSIONS = 101;
     static final int getCamera=2001;
     static final int getGallery=2002;
-    static Bluetooth bluetooth;
+//    static Bluetooth bluetooth;
+
+    private StorageReference mStorageRef;
 
 
     @Override
@@ -78,17 +86,19 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
             init();
         GlideFaceDetector.initialize(this);
 
-        setBluetooth();
+//        setBluetooth();
+
+        mStorageRef = FirebaseStorage.getInstance().getReference();
 
 
     }
-    public void setBluetooth(){
-        bluetooth = new Bluetooth(this);
-        bluetooth.checkBluetooth();
-    }
-    public static void sendData(String param){
-        bluetooth.sendData(param);
-    }
+//    public void setBluetooth(){
+//        bluetooth = new Bluetooth(this);
+//        bluetooth.checkBluetooth();
+//    }
+//    public static void sendData(String param){
+//        bluetooth.sendData(param);
+//    }
     private boolean checkPermissions() {
         int result;
         List<String> permissionList = new ArrayList<>();
@@ -185,7 +195,28 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
                 }
 /*블루투스 send***************************************************************************************************
 * 아두이노에 도어락 열라는 신호!! */
-                sendData("1");
+//                sendData("1");
+
+                Uri file = Uri.fromFile(new File(Environment.getExternalStorageDirectory().getPath()+"/"+getTime+".png"));
+                StorageReference riversRef = mStorageRef.child("images/"+file.getLastPathSegment());
+
+                riversRef.putFile(file)
+                        .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                            @Override
+                            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                                // Get a URL to the uploaded content
+//                                Uri downloadUrl = taskSnapshot.getDownloadUrl();
+                                Log.d("my", "success");
+                            }
+                        })
+                        .addOnFailureListener(new OnFailureListener() {
+                            @Override
+                            public void onFailure(@NonNull Exception exception) {
+                                // Handle unsuccessful uploads
+                                // ...
+                                Log.d("my", "fail");
+                            }
+                        });
                 break;
         }
     }
