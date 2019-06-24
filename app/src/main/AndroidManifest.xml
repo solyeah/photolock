@@ -25,7 +25,7 @@
         <meta-data android:name="com.google.android.gms.vision.DEPENDENCIES" android:value="face"/>
 
         <activity
-            android:name=".PhotoViewerActivity"
+            android:name=".SignActivity"
             android:icon="@drawable/icon"
             android:label="@string/title_activity_photo_viewer"
             android:theme="@android:style/Theme.Black.NoTitleBar"
@@ -35,6 +35,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".PhotoViewerActivity" />
+        <provider
+            android:name="android.support.v4.content.FileProvider"
+            android:authorities="${applicationId}"
+            android:exported="false"
+            android:grantUriPermissions="true"
+            tools:replace="android:authorities">
+
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"
+                tools:replace="android:resource"/>
+        </provider>
+
+
+
 
         <provider
             android:name="android.support.v4.content.FileProvider"
