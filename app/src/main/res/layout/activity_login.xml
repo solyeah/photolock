@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    tools:context=".SignActivity">
+    <ImageView
+        android:src="@drawable/icon"
+        android:layout_width="wrap_content"
+        android:layout_margin="10dp"
+        android:layout_height="wrap_content"/>
+
+    <EditText
+        android:id="@+id/signActivity_edit_email"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:inputType="textEmailAddress" />
+
+    <EditText
+        android:id="@+id/signActivity_edit_password"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:inputType="textPassword" />
+
+    <Button
+        android:textColor="@android:color/black"
+        android:background="@android:color/background_light"
+        android:text="Login"
+        android:id="@+id/signActivity_button_login"
+        android:layout_marginTop="20dp"
+        android:layout_width="150dp"
+        android:layout_height="60dp"/>
+
+    <Button
+        android:text="Sign Up"
+        android:textColor="@android:color/black"
+        android:background="@android:color/background_light"
+        android:layout_margin="20dp"
+        android:id="@+id/signActuvuty_button_signup"
+        android:layout_width="150dp"
+        android:layout_height="60dp"/>
+
+
+
+
+</LinearLayout>

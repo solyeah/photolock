@@ -36,8 +36,12 @@ import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
 import com.google.android.gms.samples.vision.face.bluetooth.Bluetooth;
+import com.google.android.gms.samples.vision.face.firebase.Firebase;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.analytics.FirebaseAnalytics;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
@@ -62,14 +66,20 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
     private static final String TAG = "PhotoViewerActivity";
     Button gallery,camera,open;
     ImageView imageView;
-    private String[] permissions = {Manifest.permission.CAMERA,Manifest.permission.WRITE_EXTERNAL_STORAGE
-    ,Manifest.permission.READ_EXTERNAL_STORAGE};
-    private static final int MULTIPLE_PERMISSIONS = 101;
+    FirebaseUser user;
+
+    private FirebaseAnalytics mFirebaseAnalytics;
+
+
+//    private String[] permissions = {Manifest.permission.CAMERA,Manifest.permission.WRITE_EXTERNAL_STORAGE
+//    ,Manifest.permission.READ_EXTERNAL_STORAGE};
+//    private static final int MULTIPLE_PERMISSIONS = 101;
     static final int getCamera=2001;
     static final int getGallery=2002;
-    static Bluetooth bluetooth;
+//    static Bluetooth bluetooth;
 
     private StorageReference mStorageRef;
+    static Firebase mFirebase;
 
 
     @Override
@@ -82,65 +92,73 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_photo_viewer);
-        if(checkPermissions())
+//        if(checkPermissions())
             init();
         GlideFaceDetector.initialize(this);
 
-        setBluetooth();
-
-        mStorageRef = FirebaseStorage.getInstance().getReference();
-
-
-    }
-    public void setBluetooth(){
-        bluetooth = new Bluetooth(this);
-        bluetooth.checkBluetooth();
-    }
-    public static void sendData(String param){
-        bluetooth.sendData(param);
-    }
-    private boolean checkPermissions() {
-        int result;
-        List<String> permissionList = new ArrayList<>();
-        for (String pm : permissions) {
-            result = ContextCompat.checkSelfPermission(this, pm);
-            if (result != PackageManager.PERMISSION_GRANTED) {
-                permissionList.add(pm);
-            }
+        user = FirebaseAuth.getInstance().getCurrentUser();
+        if(user != null){
+            String name = user.getEmail();
         }
-        if (!permissionList.isEmpty()) {
-            ActivityCompat.requestPermissions(this, permissionList.toArray(new String[permissionList.size()]), MULTIPLE_PERMISSIONS);
-            return false;
-        }
-        return true;
-    }
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
-        switch (requestCode) {
-            case MULTIPLE_PERMISSIONS: {
-                if (grantResults.length > 0) {
-                    for (int i = 0; i < permissions.length; i++) {
-                        if (permissions[i].equals(this.permissions[0])) {
-                            if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
-                                showNoPermissionToastAndFinish();
-                                break;
-                            }
-                        }
-                        if(i==permissions.length-1)
-                            init();
-                    }
-                } else {
-                    showNoPermissionToastAndFinish();
-                }
+
+//        setBluetooth();
+
+        mFirebase = new Firebase();
+        mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
+
+//        mStorageRef = FirebaseStorage.getInstance().getReference();
 
 
-            }
-        }
     }
-    private void showNoPermissionToastAndFinish() {
-        Toast.makeText(this,getString(R.string.limit),Toast.LENGTH_SHORT).show();
-        init();
-    }
+//    public void setBluetooth(){
+//        bluetooth = new Bluetooth(this);
+//        bluetooth.checkBluetooth();
+//    }
+//    public static void sendData(String param){
+//        bluetooth.sendData(param);
+//    }
+//    private boolean checkPermissions() {
+//        int result;
+//        List<String> permissionList = new ArrayList<>();
+//        for (String pm : permissions) {
+//            result = ContextCompat.checkSelfPermission(this, pm);
+//            if (result != PackageManager.PERMISSION_GRANTED) {
+//                permissionList.add(pm);
+//            }
+//        }
+//        if (!permissionList.isEmpty()) {
+//            ActivityCompat.requestPermissions(this, permissionList.toArray(new String[permissionList.size()]), MULTIPLE_PERMISSIONS);
+//            return false;
+//        }
+//        return true;
+//    }
+//    @Override
+//    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+//        switch (requestCode) {
+//            case MULTIPLE_PERMISSIONS: {
+//                if (grantResults.length > 0) {
+//                    for (int i = 0; i < permissions.length; i++) {
+//                        if (permissions[i].equals(this.permissions[0])) {
+//                            if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
+//                                showNoPermissionToastAndFinish();
+//                                break;
+//                            }
+//                        }
+//                        if(i==permissions.length-1)
+//                            init();
+//                    }
+//                } else {
+//                    showNoPermissionToastAndFinish();
+//                }
+//
+//
+//            }
+//        }
+//    }
+//    private void showNoPermissionToastAndFinish() {
+//        Toast.makeText(this,getString(R.string.limit),Toast.LENGTH_SHORT).show();
+//        init();
+//    }
     void init(){
         gallery=findViewById(R.id.gallery);
         gallery.setOnClickListener(this);
@@ -195,28 +213,37 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
                 }
 /*블루투스 send***************************************************************************************************
 * 아두이노에 도어락 열라는 신호!! */
-                sendData("1");
+//                sendData("1");
 
-                Uri file = Uri.fromFile(new File(Environment.getExternalStorageDirectory().getPath()+"/"+getTime+".png"));
-                StorageReference riversRef = mStorageRef.child("images/"+file.getLastPathSegment());
+                File file = new File(Environment.getExternalStorageDirectory().getPath() + "/" + getTime + ".png");
 
-                riversRef.putFile(file)
-                        .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                            @Override
-                            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                                // Get a URL to the uploaded content
-//                                Uri downloadUrl = taskSnapshot.getDownloadUrl();
-                                Log.d("my", "success");
-                            }
-                        })
-                        .addOnFailureListener(new OnFailureListener() {
-                            @Override
-                            public void onFailure(@NonNull Exception exception) {
-                                // Handle unsuccessful uploads
-                                // ...
-                                Log.d("my", "fail");
-                            }
-                        });
+
+                mFirebase.uploadImage(user.getEmail(), file);
+                mFirebase.writeNewRequest(1, user.getEmail(), file.getName());
+//                imageView.setImageResource(android.R.color.transparent);
+
+
+
+//                Uri file = Uri.fromFile(new File(Environment.getExternalStorageDirectory().getPath()+"/"+getTime+".png"));
+//                StorageReference riversRef = mStorageRef.child("images/"+file.getLastPathSegment());
+//
+//                riversRef.putFile(file)
+//                        .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+//                            @Override
+//                            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+//                                // Get a URL to the uploaded content
+////                                Uri downloadUrl = taskSnapshot.getDownloadUrl();
+//                                Log.d("my", "success");
+//                            }
+//                        })
+//                        .addOnFailureListener(new OnFailureListener() {
+//                            @Override
+//                            public void onFailure(@NonNull Exception exception) {
+//                                // Handle unsuccessful uploads
+//                                // ...
+//                                Log.d("my", "fail");
+//                            }
+//                        });
                 break;
         }
     }
