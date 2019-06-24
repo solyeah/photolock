@@ -20,7 +20,10 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.graphics.drawable.Drawable;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -28,19 +31,20 @@ import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.FileProvider;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
-
-import com.bumptech.glide.Glide;
-//import com.google.android.gms.samples.vision.face.bluetooth.Bluetooth;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+
+import com.bumptech.glide.Glide;
+import com.google.android.gms.samples.vision.face.bluetooth.Bluetooth;
 import com.rohitarya.glide.facedetection.transformation.FaceCenterCrop;
 import com.rohitarya.glide.facedetection.transformation.core.GlideFaceDetector;
 
@@ -63,13 +67,15 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
     Button gallery,camera,open;
     ImageView imageView;
     private String[] permissions = {Manifest.permission.CAMERA,Manifest.permission.WRITE_EXTERNAL_STORAGE
-    ,Manifest.permission.READ_EXTERNAL_STORAGE};
+            ,Manifest.permission.READ_EXTERNAL_STORAGE};
     private static final int MULTIPLE_PERMISSIONS = 101;
     static final int getCamera=2001;
     static final int getGallery=2002;
-//    static Bluetooth bluetooth;
-
+    static Bluetooth bluetooth;
     private StorageReference mStorageRef;
+
+    private String imageFilePath;
+    private Uri photoUri;
 
 
     @Override
@@ -86,19 +92,67 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
             init();
         GlideFaceDetector.initialize(this);
 
-//        setBluetooth();
-
+        setBluetooth();
         mStorageRef = FirebaseStorage.getInstance().getReference();
 
-
     }
-//    public void setBluetooth(){
-//        bluetooth = new Bluetooth(this);
-//        bluetooth.checkBluetooth();
-//    }
-//    public static void sendData(String param){
-//        bluetooth.sendData(param);
-//    }
+    private int exifOrientationToDegrees(int exifOrientation) {
+        if (exifOrientation == ExifInterface.ORIENTATION_ROTATE_90) {
+            return 90;
+        } else if (exifOrientation == ExifInterface.ORIENTATION_ROTATE_180) {
+            return 180;
+        } else if (exifOrientation == ExifInterface.ORIENTATION_ROTATE_270) {
+            return 270;
+        }
+        return 0;
+    }
+
+    private Bitmap rotate(Bitmap bitmap, float degree) {
+        Matrix matrix = new Matrix();
+        matrix.postRotate(degree);
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+    }
+
+
+    private void sendTakePhotoIntent() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException ex) {
+                // Error occurred while creating the File
+            }
+
+            if (photoFile != null) {
+                photoUri = FileProvider.getUriForFile(this, getPackageName(), photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+                startActivityForResult(takePictureIntent, getCamera);
+            }
+        }
+    }
+
+    private File createImageFile() throws IOException {
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "TEST_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,      /* prefix */
+                ".jpg",         /* suffix */
+                storageDir          /* directory */
+        );
+        imageFilePath = image.getAbsolutePath();
+        return image;
+    }
+
+
+    public void setBluetooth(){
+        bluetooth = new Bluetooth(this);
+        bluetooth.checkBluetooth();
+    }
+    public static void sendData(String param){
+        bluetooth.sendData(param);
+    }
     private boolean checkPermissions() {
         int result;
         List<String> permissionList = new ArrayList<>();
@@ -152,14 +206,13 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
 
     }
 
+
     @Override
     public void onClick(View v) {
         Intent intent=new Intent();
-        switch (v.getId()){
+        switch (v.getId()) {
             case R.id.camera:
-                intent=new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-
-                startActivityForResult(intent, getCamera);
+                sendTakePhotoIntent();
                 break;
             case R.id.gallery:
 
@@ -168,8 +221,8 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
                 startActivityForResult(intent, getGallery);
                 break;
             case R.id.open:
- /*이미지 저장***************************************************************************************************
- * 현재시간(yyyyMMddHHmmss)을 이름으로 얼굴만 크롭해서 갤러리에 저장합니다. */
+                /*이미지 저장***************************************************************************************************
+                 * 현재시간(yyyyMMddHHmmss)을 이름으로 얼굴만 크롭해서 갤러리에 저장합니다. */
                 Bitmap bitmap;
                 FileOutputStream out;
                 imageView.buildDrawingCache();
@@ -178,27 +231,24 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
                 Date date = new Date(now);
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
                 String getTime = sdf.format(date);
-                Log.d("fileName",getTime);
+                Log.d("fileName", getTime);
 
-                try{
-                    out=new FileOutputStream(new File(Environment.getExternalStorageDirectory().getPath()+"/"+getTime+".png"));
+                try {
+                    out = new FileOutputStream(new File(Environment.getExternalStorageDirectory().getPath() + "/" + getTime + ".png"));
                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
-                    sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.parse("file://"+Environment.getExternalStorageDirectory().getPath()+"/"+getTime+".png")));
+                    sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.parse("file://" + Environment.getExternalStorageDirectory().getPath() + "/" + getTime + ".png")));
 
                     Toast.makeText(getApplicationContext(), "saved", Toast.LENGTH_SHORT).show();
 
-                }
-                catch(FileNotFoundException e)
-
-                {
+                } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 }
-/*블루투스 send***************************************************************************************************
-* 아두이노에 도어락 열라는 신호!! */
-//                sendData("1");
+                /*블루투스 send***************************************************************************************************
+                 * 아두이노에 도어락 열라는 신호!! */
+                sendData("1");
 
-                Uri file = Uri.fromFile(new File(Environment.getExternalStorageDirectory().getPath()+"/"+getTime+".png"));
-                StorageReference riversRef = mStorageRef.child("images/"+file.getLastPathSegment());
+                Uri file = Uri.fromFile(new File(Environment.getExternalStorageDirectory().getPath() + "/" + getTime + ".png"));
+                StorageReference riversRef = mStorageRef.child("images/" + file.getLastPathSegment());
 
                 riversRef.putFile(file)
                         .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
@@ -217,6 +267,7 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
                                 Log.d("my", "fail");
                             }
                         });
+
                 break;
         }
     }
@@ -229,11 +280,48 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
         ByteArrayOutputStream stream =null;
         if(resultCode==RESULT_OK){
             Drawable d;
-            Bitmap bitmap;
+//            Bitmap bitmap;
             FileOutputStream out;
             switch(requestCode){
                 case getCamera:
-                    bm=(Bitmap) data.getExtras().get("data");
+//                    try {
+//                        bm=MediaStore.Images.Media.getBitmap(getContentResolver(), photoUri);
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
+//
+//                    bm=(Bitmap) data.getExtras().get("data");
+//                    stream = new ByteArrayOutputStream();
+//                    bm.compress(Bitmap.CompressFormat.PNG, 100, stream);
+//                    Glide.with(this)
+//                            .load(stream.toByteArray())
+//                            .asBitmap()
+//                            .transform(new FaceCenterCrop())
+//                            .into(imageView);
+
+                    Bitmap bitmap = BitmapFactory.decodeFile(imageFilePath);
+                    ExifInterface exif = null;
+
+                    try {
+                        exif = new ExifInterface(imageFilePath);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    int exifOrientation;
+                    int exifDegree;
+
+                    if (exif != null) {
+                        exifOrientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+                        exifDegree = exifOrientationToDegrees(exifOrientation);
+                    } else {
+                        exifDegree = 0;
+                    }
+
+//                    imageView.setImageBitmap(rotate(bitmap, exifDegree));
+
+
+                    bm=rotate(bitmap, exifDegree);
                     stream = new ByteArrayOutputStream();
                     bm.compress(Bitmap.CompressFormat.PNG, 100, stream);
                     Glide.with(this)
@@ -241,6 +329,8 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
                             .asBitmap()
                             .transform(new FaceCenterCrop())
                             .into(imageView);
+
+
                     break;
                 case getGallery:
                     try {
