@@ -20,7 +20,10 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.graphics.drawable.Drawable;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -28,6 +31,7 @@ import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.FileProvider;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -37,11 +41,18 @@ import android.widget.Toast;
 import com.bumptech.glide.Glide;
 import com.google.android.gms.samples.vision.face.bluetooth.Bluetooth;
 import com.google.android.gms.samples.vision.face.firebase.Firebase;
+import com.google.android.gms.samples.vision.face.firebase.Post;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
@@ -56,7 +67,9 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Demonstrates basic usage of the GMS vision face detector by running face landmark detection on a
@@ -70,8 +83,16 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
 
     private FirebaseAnalytics mFirebaseAnalytics;
 
+    private String imageFilePath;
+    private Uri photoUri;
 
-//    private String[] permissions = {Manifest.permission.CAMERA,Manifest.permission.WRITE_EXTERNAL_STORAGE
+
+    private ValueEventListener mPostListener;
+    private DatabaseReference mPostReference;
+
+
+
+    //    private String[] permissions = {Manifest.permission.CAMERA,Manifest.permission.WRITE_EXTERNAL_STORAGE
 //    ,Manifest.permission.READ_EXTERNAL_STORAGE};
 //    private static final int MULTIPLE_PERMISSIONS = 101;
     static final int getCamera=2001;
@@ -101,16 +122,105 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
             String name = user.getEmail();
         }
 
+        mPostReference = FirebaseDatabase.getInstance().getReference().child("server");
+
+
 //        setBluetooth();
 
         mFirebase = new Firebase();
         mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
 
 //        mStorageRef = FirebaseStorage.getInstance().getReference();
+        ValueEventListener postListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+//                Post post = dataSnapshot.getValue(Post.class);
+                if(dataSnapshot.getValue() != null){
+//                    Log.d("me", dataSnapshot.getValue().toString());
+                    Post post = dataSnapshot.getValue(Post.class);
+                    Log.w(TAG, "userName : "+ post.getUserName());
+                    Log.w(TAG, "permission : "+ post.getPermission());
+
+                    Toast.makeText(PhotoViewerActivity.this, "door OK.",
+                            Toast.LENGTH_SHORT).show();
+                }
+
+
+
+
+
+                // [START_EXCLUDE]
+
+
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.w(TAG, "loadPost:onCancelled", databaseError.toException());
+                // [START_EXCLUDE]
+                Toast.makeText(PhotoViewerActivity.this, "Failed to load post.",
+                        Toast.LENGTH_SHORT).show();
+                // [END_EXCLUDE]
+
+            }
+        };
+
+        mPostReference.addValueEventListener(postListener);
 
 
     }
-//    public void setBluetooth(){
+
+    private int exifOrientationToDegrees(int exifOrientation) {
+        if (exifOrientation == ExifInterface.ORIENTATION_ROTATE_90) {
+            return 90;
+        } else if (exifOrientation == ExifInterface.ORIENTATION_ROTATE_180) {
+            return 180;
+        } else if (exifOrientation == ExifInterface.ORIENTATION_ROTATE_270) {
+            return 270;
+        }
+        return 0;
+    }
+
+    private Bitmap rotate(Bitmap bitmap, float degree) {
+        Matrix matrix = new Matrix();
+        matrix.postRotate(degree);
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+    }
+
+
+    private void sendTakePhotoIntent() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException ex) {
+                // Error occurred while creating the File
+            }
+
+            if (photoFile != null) {
+                photoUri = FileProvider.getUriForFile(this, getPackageName(), photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+                startActivityForResult(takePictureIntent, getCamera);
+            }
+        }
+    }
+
+    private File createImageFile() throws IOException {
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "TEST_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,      /* prefix */
+                ".jpg",         /* suffix */
+                storageDir          /* directory */
+        );
+        imageFilePath = image.getAbsolutePath();
+        return image;
+    }
+
+
+    //    public void setBluetooth(){
 //        bluetooth = new Bluetooth(this);
 //        bluetooth.checkBluetooth();
 //    }
@@ -190,6 +300,8 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
  * 현재시간(yyyyMMddHHmmss)을 이름으로 얼굴만 크롭해서 갤러리에 저장합니다. */
                 Bitmap bitmap;
                 FileOutputStream out;
+                imageView.setDrawingCacheEnabled(false);
+                imageView.setDrawingCacheEnabled(true);
                 imageView.buildDrawingCache();
                 bitmap = imageView.getDrawingCache();
                 long now = System.currentTimeMillis();
@@ -256,12 +368,34 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
         ByteArrayOutputStream stream =null;
         if(resultCode==RESULT_OK){
             Drawable d;
-            Bitmap bitmap;
+//            Bitmap bitmap;
             FileOutputStream out;
             switch(requestCode){
                 case getCamera:
-//                    HERE=========================================================
-                    bm=(Bitmap) data.getExtras().get("data");
+
+                    Bitmap bitmap = BitmapFactory.decodeFile(imageFilePath);
+                    ExifInterface exif = null;
+
+                    try {
+                        exif = new ExifInterface(imageFilePath);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    int exifOrientation;
+                    int exifDegree;
+
+                    if (exif != null) {
+                        exifOrientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+                        exifDegree = exifOrientationToDegrees(exifOrientation);
+                    } else {
+                        exifDegree = 0;
+                    }
+
+//                    imageView.setImageBitmap(rotate(bitmap, exifDegree));
+
+
+                    bm=rotate(bitmap, exifDegree);
                     stream = new ByteArrayOutputStream();
                     bm.compress(Bitmap.CompressFormat.PNG, 100, stream);
                     Glide.with(this)
@@ -269,7 +403,20 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
                             .asBitmap()
                             .transform(new FaceCenterCrop())
                             .into(imageView);
+
+
                     break;
+
+//                    HERE=========================================================
+//                    bm=(Bitmap) data.getExtras().get("data");
+//                    stream = new ByteArrayOutputStream();
+//                    bm.compress(Bitmap.CompressFormat.PNG, 100, stream);
+//                    Glide.with(this)
+//                            .load(stream.toByteArray())
+//                            .asBitmap()
+//                            .transform(new FaceCenterCrop())
+//                            .into(imageView);
+//                    break;
                 case getGallery:
                     try {
                         bm = MediaStore.Images.Media.getBitmap( getContentResolver(), data.getData());
@@ -305,4 +452,6 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
 
 
     }
+
+
 }
