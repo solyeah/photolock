@@ -34,16 +34,12 @@ public class Firebase {
                 .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
                     @Override
                     public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                        // Get a URL to the uploaded content
-//                                Uri downloadUrl = taskSnapshot.getDownloadUrl();
                         Log.d("my", "success");
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(@NonNull Exception exception) {
-                        // Handle unsuccessful uploads
-                        // ...
                         Log.d("my", "fail");
                     }
                 });
@@ -51,11 +47,6 @@ public class Firebase {
 
     public void writeNewRequest(int type, String userName, String imageName){
         Request request = new Request(type, userName, imageName);
-
-//        mDatabase.setValue("Hello, World!");
         mDatabase.child("app").push().setValue(request);
-
     }
-
-
 }

@@ -1,20 +1,11 @@
 package com.google.android.gms.samples.vision.face.firebase;
 
-import com.google.firebase.database.Exclude;
-import com.google.firebase.database.IgnoreExtraProperties;
-
-import java.util.HashMap;
-import java.util.Map;
-
-@IgnoreExtraProperties
 public class Post {
 
     private String permission;
     private String userName;
 
-    public Post() {
-        // Default constructor required for calls to DataSnapshot.getValue(Post.class)
-    }
+    public Post() {}
 
     public Post(String permission, String userName) {
         this.permission = permission;
@@ -37,4 +28,3 @@ public class Post {
         this.userName = userName;
     }
 }
-// [END post_class]

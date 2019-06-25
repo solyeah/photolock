@@ -47,6 +47,7 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -97,7 +98,7 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
 //    private static final int MULTIPLE_PERMISSIONS = 101;
     static final int getCamera=2001;
     static final int getGallery=2002;
-//    static Bluetooth bluetooth;
+    static Bluetooth bluetooth;
 
     private StorageReference mStorageRef;
     static Firebase mFirebase;
@@ -115,6 +116,7 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
         setContentView(R.layout.activity_photo_viewer);
 //        if(checkPermissions())
             init();
+        setBluetooth();
         GlideFaceDetector.initialize(this);
 
         user = FirebaseAuth.getInstance().getCurrentUser();
@@ -122,50 +124,90 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
             String name = user.getEmail();
         }
 
-        mPostReference = FirebaseDatabase.getInstance().getReference().child("server");
-
-
-//        setBluetooth();
-
-        mFirebase = new Firebase();
-        mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
-
-//        mStorageRef = FirebaseStorage.getInstance().getReference();
-        ValueEventListener postListener = new ValueEventListener() {
+        FirebaseDatabase.getInstance().getReference().child("server").addChildEventListener(new ChildEventListener() {
             @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-//                Post post = dataSnapshot.getValue(Post.class);
-                if(dataSnapshot.getValue() != null){
-//                    Log.d("me", dataSnapshot.getValue().toString());
-                    Post post = dataSnapshot.getValue(Post.class);
-                    Log.w(TAG, "userName : "+ post.getUserName());
-                    Log.w(TAG, "permission : "+ post.getPermission());
-
-                    Toast.makeText(PhotoViewerActivity.this, "door OK.",
-                            Toast.LENGTH_SHORT).show();
+            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                Post post = dataSnapshot.getValue(Post.class);
+                if(post.getUserName().equals(user.getEmail())){
+                    Log.d("me", "equal mail");
+                    if(post.getPermission().equals("y")){
+                        Log.d("me", "yes");
+                        sendData("1");
+                    }else if(post.getPermission().equals("n")){
+                        Log.d("me", "No");
+                    }else{
+                        Log.d("me", post.getPermission());
+                    }
+                }else{
+                    Log.d("me", "not equal");
+                    Log.d("me", post.getUserName());
                 }
 
+            }
 
+            @Override
+            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
 
+            }
 
+            @Override
+            public void onChildRemoved(DataSnapshot dataSnapshot) {
 
-                // [START_EXCLUDE]
+            }
 
+            @Override
+            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
 
             }
 
             @Override
             public void onCancelled(DatabaseError databaseError) {
-                Log.w(TAG, "loadPost:onCancelled", databaseError.toException());
-                // [START_EXCLUDE]
-                Toast.makeText(PhotoViewerActivity.this, "Failed to load post.",
-                        Toast.LENGTH_SHORT).show();
-                // [END_EXCLUDE]
 
             }
-        };
+        });
 
-        mPostReference.addValueEventListener(postListener);
+
+
+
+        mFirebase = new Firebase();
+        mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
+
+//        mStorageRef = FirebaseStorage.getInstance().getReference();
+//        ValueEventListener postListener = new ValueEventListener() {
+//            @Override
+//            public void onDataChange(DataSnapshot dataSnapshot) {
+////                Post post = dataSnapshot.getValue(Post.class);
+//                if(dataSnapshot.getValue() != null){
+////                    Log.d("me", dataSnapshot.getValue().toString());
+//                    Post post = dataSnapshot.getValue(Post.class);
+//                    Log.w(TAG, "userName : "+ post.getUserName());
+//                    Log.w(TAG, "permission : "+ post.getPermission());
+//
+//                    Toast.makeText(PhotoViewerActivity.this, "door OK.",
+//                            Toast.LENGTH_SHORT).show();
+//                }
+//
+//
+//
+//
+//
+//                // [START_EXCLUDE]
+//
+//
+//            }
+//
+//            @Override
+//            public void onCancelled(DatabaseError databaseError) {
+//                Log.w(TAG, "loadPost:onCancelled", databaseError.toException());
+//                // [START_EXCLUDE]
+//                Toast.makeText(PhotoViewerActivity.this, "Failed to load post.",
+//                        Toast.LENGTH_SHORT).show();
+//                // [END_EXCLUDE]
+//
+//            }
+//        };
+//
+//        mPostReference.addValueEventListener(postListener);
 
 
     }
@@ -220,13 +262,13 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
     }
 
 
-    //    public void setBluetooth(){
-//        bluetooth = new Bluetooth(this);
-//        bluetooth.checkBluetooth();
-//    }
-//    public static void sendData(String param){
-//        bluetooth.sendData(param);
-//    }
+        public void setBluetooth(){
+        bluetooth = new Bluetooth(this);
+        bluetooth.checkBluetooth();
+    }
+    public static void sendData(String param){
+        bluetooth.sendData(param);
+    }
 //    private boolean checkPermissions() {
 //        int result;
 //        List<String> permissionList = new ArrayList<>();
@@ -285,9 +327,7 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
         Intent intent=new Intent();
         switch (v.getId()){
             case R.id.camera:
-                intent=new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-
-                startActivityForResult(intent, getCamera);
+                sendTakePhotoIntent();
                 break;
             case R.id.gallery:
 
@@ -330,7 +370,7 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
                 File file = new File(Environment.getExternalStorageDirectory().getPath() + "/" + getTime + ".png");
 
 
-                mFirebase.uploadImage(user.getEmail(), file);
+//                mFirebase.uploadImage(user.getEmail(), file);
                 mFirebase.writeNewRequest(1, user.getEmail(), file.getName());
 //                imageView.setImageResource(android.R.color.transparent);
 
@@ -392,7 +432,7 @@ public class PhotoViewerActivity extends Activity implements View.OnClickListene
                         exifDegree = 0;
                     }
 
-//                    imageView.setImageBitmap(rotate(bitmap, exifDegree));
+                    imageView.setImageBitmap(rotate(bitmap, exifDegree));
 
 
                     bm=rotate(bitmap, exifDegree);
